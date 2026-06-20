@@ -5,9 +5,9 @@ import { withErrorHandling, createError, ErrorTypes } from '../../utils/errorHan
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
-const SLUT_COOLDOWN = 45 * 60 * 1000;
+const CLUBPARTY_COOLDOWN = 45 * 60 * 1000;
 
-const SLUT_ACTIVITIES = [
+const CLUBPARTY_ACTIVITIES = [
     { name: "Cam Stream", min: 120, max: 450, risk: 0.2 },
     { name: "Private Dance Session", min: 220, max: 700, risk: 0.25 },
     { name: "After-Hours Club Host", min: 320, max: 900, risk: 0.3 },
@@ -103,7 +103,7 @@ function resolveOutcome(activity, wallet) {
 
 export default {
     data: new SlashCommandBuilder()
-        .setName('slut')
+        .setName('clubparty')
         .setDescription('Take a risky provocative job for random payout or loss'),
 
     execute: withErrorHandling(async (interaction, config, client) => {
@@ -114,32 +114,32 @@ export default {
             const guildId = interaction.guildId;
             const now = Date.now();
 
-            logger.debug(`[ECONOMY] Slut command started for ${userId}`, { userId, guildId });
+            logger.debug(`[ECONOMY] ClubParty command started for ${userId}`, { userId, guildId });
 
             const userData = await getEconomyData(client, guildId, userId);
 
             if (!userData) {
                 throw createError(
-                    "Failed to load economy data for slut command",
+                    "Failed to load economy data for ClubParty command",
                     ErrorTypes.DATABASE,
                     "Failed to load your economy data. Please try again later.",
                     { userId, guildId }
                 );
             }
 
-            const lastSlut = userData.lastSlut || 0;
+            const lastClubparty = userData.lastClubparty || 0;
 
-            if (now - lastSlut < SLUT_COOLDOWN) {
-                const remainingTime = lastSlut + SLUT_COOLDOWN - now;
+            if (now - lastClubparty < Clubparty_COOLDOWN) {
+                const remainingTime = lastClubparty + Clubparty_COOLDOWN - now;
                 throw createError(
-                    "Slut cooldown active",
+                    "ClubParty cooldown active",
                     ErrorTypes.RATE_LIMIT,
                     `You need to wait before you can work again! Try again in **${Math.ceil(remainingTime / 60000)}** minutes.`,
-                    { timeRemaining: remainingTime, cooldownType: 'slut' }
+                    { timeRemaining: remainingTime, cooldownType: 'ClubParty' }
                 );
             }
 
-            const activity = randomChoice(SLUT_ACTIVITIES);
+            const activity = randomChoice(CLUBPARTY_ACTIVITIES);
 
             const outcome = resolveOutcome(activity, userData.wallet || 0);
 
@@ -156,7 +156,7 @@ export default {
 
             await setEconomyData(client, guildId, userId, userData);
 
-            logger.info(`[ECONOMY_TRANSACTION] Slut activity resolved`, {
+            logger.info(`[ECONOMY_TRANSACTION] ClubParty activity resolved`, {
                 userId,
                 guildId,
                 activity: activity.name,
