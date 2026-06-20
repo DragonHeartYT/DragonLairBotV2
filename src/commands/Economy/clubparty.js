@@ -129,8 +129,8 @@ export default {
 
             const lastClubparty = userData.lastClubparty || 0;
 
-            if (now - lastClubparty < Clubparty_COOLDOWN) {
-                const remainingTime = lastClubparty + Clubparty_COOLDOWN - now;
+            if (now - lastClubparty < CLUBPARTY_COOLDOWN) {
+                const remainingTime = lastClubparty + CLUBPARTY_COOLDOWN - now;
                 throw createError(
                     "ClubParty cooldown active",
                     ErrorTypes.RATE_LIMIT,
@@ -143,13 +143,13 @@ export default {
 
             const outcome = resolveOutcome(activity, userData.wallet || 0);
 
-            userData.lastSlut = now;
-            userData.totalSluts = (userData.totalSluts || 0) + 1;
-            userData.totalSlutEarnings = (userData.totalSlutEarnings || 0) + Math.max(0, outcome.delta);
-            userData.totalSlutLosses = (userData.totalSlutLosses || 0) + Math.max(0, -outcome.delta);
+            userData.lastClubparty = now;
+            userData.totalClubpartys = (userData.totalClubpartys || 0) + 1;
+            userData.totalClubpartyEarnings = (userData.totalClubpartyEarnings || 0) + Math.max(0, outcome.delta);
+            userData.totalClubpartyLosses = (userData.totalClubpartyLosses || 0) + Math.max(0, -outcome.delta);
 
             if (outcome.type !== 'payout') {
-                userData.failedSluts = (userData.failedSluts || 0) + 1;
+                userData.failedClubpartys = (userData.failedClubpartys || 0) + 1;
             }
 
             userData.wallet = Math.max(0, (userData.wallet || 0) + outcome.delta);
