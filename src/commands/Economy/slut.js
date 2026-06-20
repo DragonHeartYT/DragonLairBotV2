@@ -184,5 +184,5 @@ export default {
             });
 
             await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-    }, { command: 'rob' })
+    }, { command: 'slut' })
 };
