@@ -25,6 +25,7 @@ const CATEGORY_ICONS = {
     Core: "ℹ️",
     Moderation: "🛡️",
     Economy: "💰",
+    Music: "🎵",
     Fun: "🎮",
     Leveling: "📊",
     Utility: "🔧",
@@ -173,7 +174,7 @@ export default {
                     components: [],
                 });
             } catch (error) {
-                
+                logger.debug('Help menu close edit failed (interaction may have expired):', error?.message);
             }
         }, HELP_MENU_TIMEOUT_MS);
     },

@@ -1,13 +1,14 @@
 import { Events } from 'discord.js';
 import { logger } from '../utils/logger.js';
-import { getLevelingConfig, getUserLevelData } from '../services/leveling.js';
-import { addXp } from '../services/xpSystem.js';
+import { getLevelingConfig, getUserLevelData } from '../services/leveling/leveling.js';
+import { addXp } from '../services/leveling/xpSystem.js';
 import { checkRateLimit } from '../utils/rateLimiter.js';
 import { parsePrefixCommand } from '../utils/prefixParser.js';
 import { supportsPrefixExecution, executePrefixCommand, resolvePrefixAccessKey } from '../utils/messageAdapter.js';
-import { resolveCommandAlias, resolveSubcommandAlias } from '../config/commandAliases.js';
-import { getPrefixRestriction } from '../config/prefixRestrictions.js';
-import { getGuildConfig } from '../services/guildConfig.js';
+import { resolveCommandAlias, resolveSubcommandAlias } from '../config/commands/commandAliases.js';
+import { getPrefixRestriction } from '../config/commands/prefixRestrictions.js';
+import { getGuildConfig } from '../services/config/guildConfig.js';
+import { getCommandPrefix, getBotMessage, isBotOwner, isCommandCategoryEnabled, isMaintenanceMode } from '../config/bot.js';
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
 import { createEmbed } from '../utils/embeds.js';
 import { isCommandEnabled } from '../services/commandAccessService.js';
@@ -46,14 +47,21 @@ export default {
 async function handlePrefixCommand(message, client) {
   try {
     const guildConfig = await getGuildConfig(client, message.guild.id);
-    const prefix = guildConfig?.prefix || client.config.bot.prefix || '!';
+    const prefix = guildConfig?.prefix || getCommandPrefix();
     const parsed = parsePrefixCommand(message.content, prefix);
     
     if (!parsed) {
       return; 
     }
 
-    const { commandName, args } = parsed;
+    let { commandName, args } = parsed;
+    const musicPrefixShortcut = commandName.toLowerCase();
+    const MUSIC_PREFIX_SHORTCUTS = new Set(['leave', 'pause', 'resume', 'skip', 'stop', 'volume']);
+    if (MUSIC_PREFIX_SHORTCUTS.has(musicPrefixShortcut)) {
+      commandName = 'music';
+      args = [musicPrefixShortcut, ...args];
+    }
+
     logger.info(`Prefix command detected: ${commandName}, args: ${args.join(', ')}`);
 
     const resolvedCommandName = resolveCommandAlias(commandName);
@@ -63,6 +71,28 @@ async function handlePrefixCommand(message, client) {
     if (!command) {
       logger.warn(`Command not found: ${resolvedCommandName}`);
       return; 
+    }
+
+    if (isMaintenanceMode() && !isBotOwner(message.author.id)) {
+      await message.channel.send({
+        embeds: [createEmbed({
+          title: 'Maintenance Mode',
+          description: getBotMessage('maintenanceMode'),
+          color: 'warning',
+        })],
+      }).catch(() => {});
+      return;
+    }
+
+    if (!isCommandCategoryEnabled(command.category)) {
+      await message.channel.send({
+        embeds: [createEmbed({
+          title: 'Feature Disabled',
+          description: getBotMessage('commandDisabled'),
+          color: 'error',
+        })],
+      }).catch(() => {});
+      return;
     }
 
     const restriction = getPrefixRestriction(command, args, resolveSubcommandAlias);
@@ -110,7 +140,7 @@ async function handlePrefixCommand(message, client) {
 
     logger.info(`Executing prefix command: ${prefix}${commandName} (resolved to ${resolvedCommandName}) by ${message.author.tag}`);
     
-    await executePrefixCommand(command, message, args, client, prefix);
+    await executePrefixCommand(command, message, args, client, prefix, guildConfig);
   } catch (error) {
     logger.error('Error handling prefix command:', error);
   }
@@ -211,8 +241,8 @@ async function handleLeveling(message, client) {
     }
 
     const result = await addXp(client, message.guild, message.member, finalXP);
-    
-    if (result.success && result.leveledUp) {
+
+    if (result?.leveledUp) {
       logger.info(
         `${message.author.tag} leveled up to level ${result.level} in ${message.guild.name}`
       );

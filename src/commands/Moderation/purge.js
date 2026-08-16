@@ -5,6 +5,7 @@ import { logger } from '../../utils/logger.js';
 import { getColor } from '../../config/bot.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 export default {
     data: new SlashCommandBuilder()
     .setName("purge")
@@ -32,9 +33,6 @@ export default {
       return;
     }
 
-    if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages))
-      return await replyUserError(interaction, { type: ErrorTypes.PERMISSION, message: 'You need the `Manage Messages` permission to purge messages.' });
-
     const amount = interaction.options.getInteger("amount");
     const channel = interaction.channel;
 
@@ -45,21 +43,6 @@ export default {
       const fetched = await channel.messages.fetch({ limit: amount });
       const deleted = await channel.bulkDelete(fetched, true);
       const deletedCount = deleted.size;
-
-      const purgeEmbed = createEmbed(
-        "🗑️ Messages Purged (Action Log)",
-        `${deletedCount} messages were deleted by ${interaction.user}.`,
-      )
-.setColor(getColor('moderation'))
-        .addFields(
-          { name: "Channel", value: channel.toString(), inline: true },
-          {
-            name: "Moderator",
-            value: `${interaction.user.tag} (${interaction.user.id})`,
-            inline: true,
-          },
-          { name: "Count", value: `${deletedCount} messages`, inline: false },
-        );
 
       await logEvent({
         client,

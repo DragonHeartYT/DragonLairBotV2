@@ -2,8 +2,8 @@ import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.
 import { createEmbed, successEmbed, warningEmbed } from '../../utils/embeds.js';
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
-import { ModerationService } from '../../services/moderationService.js';
-import { TitanBotError } from '../../utils/errorHandler.js';
+import { ModerationService } from '../../services/moderation/moderationService.js';
+import { TitanBotError, replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
@@ -34,10 +34,6 @@ export default {
                 commandName: 'masskick'
             });
             return;
-        }
-
-        if (!interaction.member.permissions.has(PermissionFlagsBits.KickMembers)) {
-            return await replyUserError(interaction, { type: ErrorTypes.PERMISSION, message: 'You do not have permission to kick members.' });
         }
 
         const usersInput = interaction.options.getString("users");

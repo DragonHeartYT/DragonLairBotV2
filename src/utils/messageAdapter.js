@@ -2,10 +2,13 @@
 
 import { mapArgumentsToOptions } from './prefixParser.js';
 import { createEmbed } from './embeds.js';
+import { handleInteractionError } from './errorHandler.js';
 import { logger } from './logger.js';
 import { InteractionHelper } from './interactionHelper.js';
-import { SLASH_ONLY_COMMANDS } from '../config/prefixRestrictions.js';
+import { SLASH_ONLY_COMMANDS } from '../config/commands/prefixRestrictions.js';
+import { getCommandPrefix } from '../config/bot.js';
 import { ResponseCoordinator, buildPrefixUsage } from './responseCoordinator.js';
+import { enforceDefaultCommandPermissions } from './permissionGuard.js';
 
 export { buildPrefixUsage };
 
@@ -185,12 +188,20 @@ export function supportsPrefixExecution(command) {
   return !!command.execute;
 }
 
-export async function executePrefixCommand(command, message, args, client, prefixOverride = null) {
+export async function executePrefixCommand(command, message, args, client, prefixOverride = null, guildConfig = null) {
   const mockInteraction = createMockInteraction(message, command.data, args);
   const coordinator = mockInteraction._responseCoordinator;
-  const prefix = prefixOverride || message.client?.config?.bot?.prefix || '!';
+  const prefix = prefixOverride || getCommandPrefix();
 
   try {
+    const permissionAllowed = await enforceDefaultCommandPermissions(mockInteraction, command, {
+      source: 'messageAdapter.executePrefixCommand',
+      guildConfig,
+    });
+    if (!permissionAllowed) {
+      return;
+    }
+
     const validation = mockInteraction.options.validateRequired();
     if (!validation.valid) {
       await coordinator.respondUsageFromCommand(prefix, command.data, validation);
@@ -198,27 +209,15 @@ export async function executePrefixCommand(command, message, args, client, prefi
     }
 
     if (command.prefixExecute) {
-      await command.prefixExecute(mockInteraction, client.config, client);
+      await command.prefixExecute(mockInteraction, guildConfig, client);
     } else {
-      await command.execute(mockInteraction, client.config, client);
+      await command.execute(mockInteraction, guildConfig, client);
     }
   } catch (error) {
-    logger.error('Prefix command execution error:', {
-      command: command.data.name,
-      args,
-      error: error.message,
-      stack: error.stack,
+    await handleInteractionError(mockInteraction, error, {
+      type: 'prefix_command',
+      command: command.data?.name,
+      source: 'messageAdapter.executePrefixCommand',
     });
-
-    if (!coordinator.hasResponded()) {
-      const embed = createEmbed({
-        title: 'Command Execution Failed',
-        description: `An error occurred while executing this command.\n\n${error.message}`,
-        color: 'error',
-      });
-      await coordinator.respond({ embeds: [embed] });
-    }
-
-    throw error;
   }
 }
